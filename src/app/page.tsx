@@ -255,13 +255,7 @@ export default function Usuario() {
                 </span>
               </button>
 
-              <div className="pt-1 text-center text-xs text-slate-500 dark:text-slate-400">
-                Al continuar aceptas nuestro{" "}
-                <a className="underline underline-offset-2 hover:text-slate-700 dark:hover:text-slate-300" href="#">
-                  aviso de privacidad
-                </a>
-                .
-              </div>
+              
             </form>
           </div>
         </div>
