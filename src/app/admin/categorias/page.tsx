@@ -3,6 +3,7 @@
 import Image from 'next/image';
 import { useEffect, useMemo, useState } from 'react';
 import { BASE_URL } from '@/lib/api';
+import Link from 'next/link';
 
 type Categoria = {
   id: number;
@@ -125,16 +126,18 @@ export default function CategoriasAdminPage() {
   };
 
   const handleDelete = async (cat: Categoria) => {
-    if (!confirm(`¿Eliminar la categoría "${cat.nombre}"?`)) return;
-    try {
-      const res = await fetch(`/api/categorias/${cat.id}`, { method: 'DELETE' });
-      const json = await res.json().catch(() => null);
-      if (!res.ok) throw new Error((json && (json.message || json.error)) || `HTTP ${res.status}`);
-      setData((prev) => prev.filter((x) => x.id !== cat.id));
-    } catch (e: any) {
-      alert(e.message || 'No se pudo eliminar');
-    }
-  };
+  if (!confirm(`¿Eliminar la categoría "${cat.nombre}"?`)) return;
+  try {
+    const res = await fetch(`${BASE_URL}/categorias/${cat.id}`, { method: 'DELETE' });
+    const json = await res.json().catch(() => null);
+    if (!res.ok) throw new Error((json && (json.message || json.error)) || `HTTP ${res.status}`);
+    // éxito: quita el item de la tabla
+    setData(prev => prev.filter(x => x.id !== cat.id));
+  } catch (e: any) {
+    alert(e.message || 'No se pudo eliminar');
+  }
+};
+
 
   return (
     <main className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-sky-50 dark:from-slate-900 dark:via-slate-950 dark:to-slate-900">
@@ -174,12 +177,12 @@ export default function CategoriasAdminPage() {
               {loading ? 'Cargando…' : 'Recargar'}
             </button>
 
-            <button
-              onClick={openCreate}
-              className="rounded-xl bg-sky-600 px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-sky-700"
-            >
-              Nueva
-            </button>
+            <Link
+  href="/admin/categorias/nueva"
+  className="rounded-xl bg-sky-600 px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-sky-700"
+>
+  Nueva
+</Link>
           </div>
         </header>
 
@@ -392,7 +395,12 @@ function CategoriaRow({
       </Td>
       <Td className="text-right">
         <div className="flex items-center justify-end gap-2">
-          <ActionButton onClick={() => onEdit(c)}>Editar</ActionButton>
+          <Link href={`/admin/categorias/${c.id}/editar`} prefetch
+  className="rounded-xl px-3 py-1.5 text-xs font-medium border hover:bg-slate-50 dark:hover:bg-white/10
+             text-slate-700 dark:text-slate-200 border-slate-200/70 dark:border-white/10">
+  Editar
+</Link>
+
           <ActionButton onClick={() => onDelete(c)} variant="danger">
             Eliminar
           </ActionButton>
