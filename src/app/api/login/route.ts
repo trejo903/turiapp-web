@@ -2,54 +2,74 @@
 import { BASE_URL } from "@/lib/api";
 import { NextResponse } from "next/server";
 
+type ApiLoginSuccess = {
+  user?: {
+    id: number;
+    correo: string;
+    nombre?: string | null;
+    apellido?: string | null;
+  } | null;
+  accessToken: string;
+};
+
+type ApiLoginError = {
+  message?: string | string[];
+  error?: string;
+  raw?: string;
+};
+
+function safeParseJson<T>(text: string): T | null {
+  try {
+    return text ? (JSON.parse(text) as T) : null;
+  } catch {
+    return null;
+  }
+}
+
 export async function POST(req: Request) {
   try {
-    const { correo, password } = await req.json();
+    const { correo, password } = (await req.json()) as {
+      correo: string;
+      password: string;
+    };
 
-    // Llama a tu API Nest (server to server)
     const r = await fetch(`${BASE_URL}/usuarios/login-password`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ correo, password }),
-      // No uses credentials aquí; es server→server
     });
 
-    // Intenta parsear JSON de forma robusta
-    let data: any = null;
     const text = await r.text();
-    try {
-      data = text ? JSON.parse(text) : null;
-    } catch {
-      data = { raw: text };
-    }
 
+    // Error HTTP desde el backend
     if (!r.ok) {
-      const message =
-        data?.message ||
-        data?.error ||
-        (Array.isArray(data?.message) ? data.message[0] : undefined) ||
-        "Error de login";
+      const data = safeParseJson<ApiLoginError>(text) ?? { raw: text };
+      const msgFromArray =
+        Array.isArray(data.message) ? data.message[0] : data.message;
+      const message = msgFromArray || data.error || data.raw || "Error de login";
       return NextResponse.json({ message }, { status: r.status });
     }
 
-    const token = data?.accessToken as string | undefined;
+    // Éxito: esperamos { accessToken, user }
+    const data = safeParseJson<ApiLoginSuccess>(text);
+    const token = data?.accessToken;
+
     if (!token) {
       return NextResponse.json({ message: "Token no recibido" }, { status: 500 });
     }
 
-    // Seteamos cookie en el MISMO dominio del frontend
     const resp = NextResponse.json({ ok: true, user: data?.user ?? null });
 
     resp.cookies.set("access_token", token, {
       httpOnly: true,
-      secure: true,        // en Vercel es HTTPS
-      sameSite: "lax",     // mismo sitio; funciona con navegación normal
+      secure: true,    // en Vercel siempre HTTPS
+      sameSite: "lax",
       path: "/",
-      maxAge: 60 * 60,     // 1h en segundos
+      maxAge: 60 * 60, // 1h (segundos)
     });
 
     return resp;
-  } catch (err) {
+  } catch {
     return NextResponse.json(
       { message: "No se pudo procesar el login" },
       { status: 500 }

@@ -38,14 +38,7 @@ export default function CategoriasAdminPage() {
     setFColor('');
   };
 
-  const openEdit = (cat: Categoria) => {
-    setMode('edit');
-    setCurrent(cat);
-    setFNombre(cat.nombre ?? '');
-    setFImg(cat.img ?? '');
-    setFColor(cat.color ?? '');
-    setOpen(true);
-  };
+  
 
   const closeModal = () => {
     setOpen(false);
