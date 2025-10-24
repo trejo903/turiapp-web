@@ -52,9 +52,15 @@ export default function EditarCategoriaPage() {
         setImg(c.img ?? '');
         setColor(c.color ?? '');
         setReservable(!!c.reservable);
-      } catch (e: any) {
-        setErr(e.message || 'No se pudo cargar la categoría');
-      } finally {
+      } catch (e: unknown) {
+  const msg =
+    e instanceof Error
+      ? e.message
+      : typeof e === 'string'
+      ? e
+      : 'No se pudo cargar la categoría';   // o el fallback correspondiente
+  setErr(msg);
+} finally {
         setLoading(false);
       }
     })();
@@ -91,9 +97,15 @@ export default function EditarCategoriaPage() {
       if (!r.ok) throw new Error((json && (json.message || json.error)) || `HTTP ${r.status}`);
 
       router.push('/admin/categorias?updated=1');
-    } catch (e: any) {
-      setErr(e.message || 'No se pudo actualizar la categoría');
-    } finally {
+    } catch (e: unknown) {
+  const msg =
+    e instanceof Error
+      ? e.message
+      : typeof e === 'string'
+      ? e
+      : 'No se pudo actualizar la categoría';
+  setErr(msg);
+} finally {
       setSaving(false);
     }
   };

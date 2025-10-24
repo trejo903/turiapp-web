@@ -47,21 +47,22 @@ export default function NuevaCategoriaPage() {
     };
 
     try {
-      const res = await fetch(`${BASE_URL}/categorias`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(body),
-      });
-      const json = await res.json().catch(() => null);
-      if (!res.ok) throw new Error((json && (json.message || json.error)) || `HTTP ${res.status}`);
+  const res = await fetch(`${BASE_URL}/categorias`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  });
+  const json = await res.json().catch(() => null);
+  if (!res.ok) throw new Error((json && (json.message || json.error)) || `HTTP ${res.status}`);
 
-      // listo: regresa al listado con un flag
-      router.push('/admin/categorias?created=1');
-    } catch (e: any) {
-      setErr(e.message || 'No se pudo crear la categoría');
-    } finally {
-      setSaving(false);
-    }
+  router.push('/admin/categorias?created=1');
+} catch (e: unknown) {
+  const msg = e instanceof Error ? e.message : String(e ?? '');
+  setErr(msg || 'No se pudo crear la categoría');
+} finally {
+  setSaving(false);
+}
+
   };
 
   return (
