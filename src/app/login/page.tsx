@@ -1,5 +1,6 @@
 "use client";
 
+import { Suspense } from "react";
 import Link from "next/link";
 import { useSearchParams, useRouter } from "next/navigation";
 import { useForm } from "react-hook-form";
@@ -18,7 +19,17 @@ class HttpError extends Error {
   }
 }
 
-export default function NextLogin() {
+/** Página: sólo envuelve al componente que usa useSearchParams dentro de Suspense */
+export default function NextLoginPage() {
+  return (
+    <Suspense fallback={null}>
+      <LoginInner />
+    </Suspense>
+  );
+}
+
+/** Todo tu código que usa hooks va aquí */
+function LoginInner() {
   const router = useRouter();
   const search = useSearchParams();
   const email = search.get("email") ?? "";
@@ -74,9 +85,7 @@ export default function NextLogin() {
           } catch {
             messageFromServer = bodyText;
           }
-        } catch {
-          /* ignore */
-        }
+        } catch { /* ignore */ }
         throw new HttpError(friendlyMessage(res.status, messageFromServer), res.status);
       }
 
