@@ -22,9 +22,9 @@ export default function CategoriasAdminPage() {
   const [err, setErr] = useState<string | null>(null);
   const [q, setQ] = useState('');
 
-  // modal
+  // modal (solo se usa para editar)
   const [open, setOpen] = useState(false);
-  const [mode, setMode] = useState<'create' | 'edit'>('create');
+  const [mode, setMode] = useState<'create' | 'edit'>('edit');
   const [current, setCurrent] = useState<Categoria | null>(null);
 
   // form
@@ -36,13 +36,6 @@ export default function CategoriasAdminPage() {
     setFNombre('');
     setFImg('');
     setFColor('');
-  };
-
-  const openCreate = () => {
-    setMode('create');
-    setCurrent(null);
-    resetForm();
-    setOpen(true);
   };
 
   const openEdit = (cat: Categoria) => {
@@ -57,6 +50,7 @@ export default function CategoriasAdminPage() {
   const closeModal = () => {
     setOpen(false);
     setErr(null);
+    resetForm();
   };
 
   const fetchAll = async (signal?: AbortSignal) => {
@@ -67,8 +61,10 @@ export default function CategoriasAdminPage() {
       const json = await res.json().catch(() => null);
       if (!res.ok) throw new Error((json && (json.message || json.error)) || `HTTP ${res.status}`);
       setData(json as Categoria[]);
-    } catch (e: any) {
-      if (e.name !== 'AbortError') setErr(e.message || 'Error al cargar categorías');
+    } catch (e: unknown) {
+      if (e instanceof DOMException && e.name === 'AbortError') return;
+      const msg = e instanceof Error ? e.message : 'Error al cargar categorías';
+      setErr(msg);
     } finally {
       setLoading(false);
     }
@@ -84,7 +80,13 @@ export default function CategoriasAdminPage() {
     const term = q.trim().toLowerCase();
     if (!term) return data;
     return data.filter((c) => {
-      const s = [String(c.id), c.nombre, c.img ?? '', c.color ?? '', c.reservable ? 'reservable' : 'no reservable']
+      const s = [
+        String(c.id),
+        c.nombre,
+        c.img ?? '',
+        c.color ?? '',
+        c.reservable ? 'reservable' : 'no reservable',
+      ]
         .join(' ')
         .toLowerCase();
       return s.includes(term);
@@ -94,7 +96,12 @@ export default function CategoriasAdminPage() {
   const isValidHex = (v: string) => /^#([0-9A-Fa-f]{6})$/.test(v);
   const isValidUrl = (v: string) => {
     if (!v) return true;
-    try { new URL(v); return true; } catch { return false; }
+    try {
+      new URL(v);
+      return true;
+    } catch {
+      return false;
+    }
   };
 
   const handleSubmit = async () => {
@@ -111,33 +118,37 @@ export default function CategoriasAdminPage() {
     };
 
     const editing = mode === 'edit' && current;
-    const url = editing ? `/api/categorias/${current!.id}` : `/api/categorias`;
+    const url = editing ? `${BASE_URL}/categorias/${current!.id}` : `${BASE_URL}/categorias`;
     const method = editing ? 'PATCH' : 'POST';
 
     try {
-      const res = await fetch(url, { method, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+      const res = await fetch(url, {
+        method,
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+      });
       const json = await res.json().catch(() => null);
       if (!res.ok) throw new Error((json && (json.message || json.error)) || `HTTP ${res.status}`);
       await fetchAll();
       closeModal();
-    } catch (e: any) {
-      setErr(e.message || 'No se pudo guardar');
+    } catch (e: unknown) {
+      const msg = e instanceof Error ? e.message : 'No se pudo guardar';
+      setErr(msg);
     }
   };
 
   const handleDelete = async (cat: Categoria) => {
-  if (!confirm(`¿Eliminar la categoría "${cat.nombre}"?`)) return;
-  try {
-    const res = await fetch(`${BASE_URL}/categorias/${cat.id}`, { method: 'DELETE' });
-    const json = await res.json().catch(() => null);
-    if (!res.ok) throw new Error((json && (json.message || json.error)) || `HTTP ${res.status}`);
-    // éxito: quita el item de la tabla
-    setData(prev => prev.filter(x => x.id !== cat.id));
-  } catch (e: any) {
-    alert(e.message || 'No se pudo eliminar');
-  }
-};
-
+    if (!confirm(`¿Eliminar la categoría "${cat.nombre}"?`)) return;
+    try {
+      const res = await fetch(`${BASE_URL}/categorias/${cat.id}`, { method: 'DELETE' });
+      const json = await res.json().catch(() => null);
+      if (!res.ok) throw new Error((json && (json.message || json.error)) || `HTTP ${res.status}`);
+      setData((prev) => prev.filter((x) => x.id !== cat.id));
+    } catch (e: unknown) {
+      const msg = e instanceof Error ? e.message : 'No se pudo eliminar';
+      alert(msg);
+    }
+  };
 
   return (
     <main className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-sky-50 dark:from-slate-900 dark:via-slate-950 dark:to-slate-900">
@@ -145,12 +156,8 @@ export default function CategoriasAdminPage() {
         {/* Header */}
         <header className="mb-8 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div>
-            <h1 className="text-2xl font-bold tracking-tight text-slate-900 dark:text-slate-100">
-              Categorías
-            </h1>
-            <p className="text-sm text-slate-600 dark:text-slate-400">
-              Gestiona las categorías y su información.
-            </p>
+            <h1 className="text-2xl font-bold tracking-tight text-slate-900 dark:text-slate-100">Categorías</h1>
+            <p className="text-sm text-slate-600 dark:text-slate-400">Gestiona las categorías y su información.</p>
           </div>
 
           {/* Toolbar */}
@@ -178,11 +185,11 @@ export default function CategoriasAdminPage() {
             </button>
 
             <Link
-  href="/admin/categorias/nueva"
-  className="rounded-xl bg-sky-600 px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-sky-700"
->
-  Nueva
-</Link>
+              href="/admin/categorias/nueva"
+              className="rounded-xl bg-sky-600 px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-sky-700"
+            >
+              Nueva
+            </Link>
           </div>
         </header>
 
@@ -209,12 +216,20 @@ export default function CategoriasAdminPage() {
               </thead>
               <tbody>
                 {loading ? (
-                  <tr><td className="p-6 text-center text-slate-500 dark:text-slate-400" colSpan={6}>Cargando…</td></tr>
+                  <tr>
+                    <td className="p-6 text-center text-slate-500 dark:text-slate-400" colSpan={6}>
+                      Cargando…
+                    </td>
+                  </tr>
                 ) : filtered.length === 0 ? (
-                  <tr><td className="p-10 text-center text-slate-500 dark:text-slate-400" colSpan={6}>{q ? 'Sin resultados.' : 'Aún no hay categorías.'}</td></tr>
+                  <tr>
+                    <td className="p-10 text-center text-slate-500 dark:text-slate-400" colSpan={6}>
+                      {q ? 'Sin resultados.' : 'Aún no hay categorías.'}
+                    </td>
+                  </tr>
                 ) : (
                   filtered.map((c) => (
-                    <CategoriaRow key={c.id} c={c} onEdit={openEdit} onDelete={handleDelete} />
+                    <CategoriaRow key={c.id} c={c} onDelete={handleDelete} />
                   ))
                 )}
               </tbody>
@@ -223,15 +238,18 @@ export default function CategoriasAdminPage() {
         </section>
       </div>
 
-      {/* Modal */}
+      {/* Modal de edición */}
       {open && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
           <div className="w-full max-w-lg rounded-2xl bg-white p-5 shadow-xl dark:bg-slate-900">
             <div className="mb-4 flex items-center justify-between">
               <h2 className="text-lg font-semibold">
-                {mode === 'create' ? 'Nueva categoría' : `Editar: ${current?.nombre}`}
+                {mode === 'edit' ? `Editar: ${current?.nombre}` : 'Nueva categoría'}
               </h2>
-              <button onClick={closeModal} className="rounded-lg border px-3 py-1 text-xs hover:bg-gray-100 dark:border-white/10 dark:hover:bg-white/10">
+              <button
+                onClick={closeModal}
+                className="rounded-lg border px-3 py-1 text-xs hover:bg-gray-100 dark:border-white/10 dark:hover:bg-white/10"
+              >
                 Cerrar
               </button>
             </div>
@@ -253,7 +271,7 @@ export default function CategoriasAdminPage() {
                   value={fImg}
                   onChange={(e) => setFImg(e.target.value)}
                   placeholder="https://…"
-                  className="w-full rounded-lg border px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-sky-500 dark:border-white/10 dark:bg:white/5 dark:text-slate-100"
+                  className="w-full rounded-lg border px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-sky-500 dark:border-white/10 dark:bg-white/5 dark:text-slate-100"
                 />
                 {fImg && isValidUrl(fImg) && (
                   <div className="mt-2 flex items-center gap-2 text-xs text-gray-600 dark:text-slate-300">
@@ -266,7 +284,9 @@ export default function CategoriasAdminPage() {
               </div>
 
               <div>
-                <label className="mb-1 block text-xs font-medium text-gray-600 dark:text-slate-300">Color (#RRGGBB)</label>
+                <label className="mb-1 block text-xs font-medium text-gray-600 dark:text-slate-300">
+                  Color (#RRGGBB)
+                </label>
                 <input
                   value={fColor}
                   onChange={(e) => setFColor(e.target.value)}
@@ -275,7 +295,7 @@ export default function CategoriasAdminPage() {
                 />
                 {fColor && isValidHex(fColor) && (
                   <div className="mt-2 flex items-center gap-2 text-xs text-gray-600 dark:text-slate-300">
-                    <span className="h-4 w-4 rounded" style={{ backgroundColor: fColor }} />
+                    <span className="h-4 w-4 rounded border border-black/10 dark:border-white/30" style={{ backgroundColor: fColor }} />
                     Vista previa
                   </div>
                 )}
@@ -289,10 +309,16 @@ export default function CategoriasAdminPage() {
             )}
 
             <div className="mt-5 flex items-center justify-end gap-2">
-              <button onClick={closeModal} className="rounded-lg border px-4 py-2 text-sm hover:bg-gray-100 dark:border-white/10 dark:hover:bg-white/10">
+              <button
+                onClick={closeModal}
+                className="rounded-lg border px-4 py-2 text-sm hover:bg-gray-100 dark:border-white/10 dark:hover:bg-white/10"
+              >
                 Cancelar
               </button>
-              <button onClick={handleSubmit} className="rounded-lg bg-sky-600 px-4 py-2 text-sm font-semibold text-white hover:bg-sky-700">
+              <button
+                onClick={handleSubmit}
+                className="rounded-lg bg-sky-600 px-4 py-2 text-sm font-semibold text-white hover:bg-sky-700"
+              >
                 Guardar
               </button>
             </div>
@@ -316,9 +342,11 @@ function Td({ children, className = '' }: { children: React.ReactNode; className
   return <td className={`border-t border-slate-100/70 px-4 py-3 dark:border-white/10 ${className}`}>{children}</td>;
 }
 function Badge({ children, color = 'slate' }: { children: React.ReactNode; color?: 'green' | 'slate' }) {
-  const schemes: Record<string, string> = {
-    green: 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-200 border-green-200/60 dark:border-green-900/50',
-    slate: 'bg-slate-100 text-slate-700 dark:bg-white/10 dark:text-slate-200 border-slate-200/60 dark:border-white/10',
+  const schemes: Record<'green' | 'slate', string> = {
+    green:
+      'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-200 border-green-200/60 dark:border-green-900/50',
+    slate:
+      'bg-slate-100 text-slate-700 dark:bg-white/10 dark:text-slate-200 border-slate-200/60 dark:border-white/10',
   };
   return <span className={`inline-flex items-center rounded-full border px-2 py-0.5 text-[11px] font-medium ${schemes[color]}`}>{children}</span>;
 }
@@ -331,33 +359,26 @@ function ActionButton({
   children: React.ReactNode;
   variant?: 'ghost' | 'danger' | 'primary' | 'ghostWhite';
 }) {
-  const stylesMap: Record<string, string> = {
+  const stylesMap: Record<'primary' | 'danger' | 'ghost' | 'ghostWhite', string> = {
     primary: 'bg-sky-600 text-white hover:bg-sky-700',
     danger: 'bg-red-600 text-white hover:bg-red-700',
     ghost:
       'border hover:bg-slate-50 dark:hover:bg-white/10 text-slate-700 dark:text-slate-200 border-slate-200/70 dark:border-white/10',
-    ghostWhite:
-      'border border-white/30 text-white hover:bg-white/10', // 👈 contraste blanco
+    ghostWhite: 'border border-white/30 text-white hover:bg-white/10',
   };
 
   return (
-    <button
-      onClick={onClick}
-      className={`rounded-xl px-3 py-1.5 text-xs font-medium ${stylesMap[variant]}`}
-    >
+    <button onClick={onClick} className={`rounded-xl px-3 py-1.5 text-xs font-medium ${stylesMap[variant]}`}>
       {children}
     </button>
   );
 }
 
-
 function CategoriaRow({
   c,
-  onEdit,
   onDelete,
 }: {
   c: Categoria;
-  onEdit: (c: Categoria) => void;
   onDelete: (c: Categoria) => void;
 }) {
   return (
@@ -377,29 +398,27 @@ function CategoriaRow({
         )}
       </Td>
       <Td>
-  {c.color ? (
-    <span className="inline-flex items-center gap-2 text-slate-700 dark:text-white">
-      <span
-        className="h-4 w-4 rounded border border-black/10 dark:border-white/30"
-        style={{ backgroundColor: c.color }}
-      />
-      <span className="font-medium tracking-wide">{c.color}</span>
-    </span>
-  ) : (
-    <span className="text-slate-400">—</span>
-  )}
-</Td>
-
-      <Td>
-        {c.reservable ? <Badge color="green">Sí</Badge> : <Badge>No</Badge>}
+        {c.color ? (
+          <span className="inline-flex items-center gap-2 text-slate-700 dark:text-white">
+            <span className="h-4 w-4 rounded border border-black/10 dark:border-white/30" style={{ backgroundColor: c.color }} />
+            <span className="font-medium tracking-wide">{c.color}</span>
+          </span>
+        ) : (
+          <span className="text-slate-400">—</span>
+        )}
       </Td>
+
+      <Td>{c.reservable ? <Badge color="green">Sí</Badge> : <Badge>No</Badge>}</Td>
       <Td className="text-right">
         <div className="flex items-center justify-end gap-2">
-          <Link href={`/admin/categorias/${c.id}/editar`} prefetch
-  className="rounded-xl px-3 py-1.5 text-xs font-medium border hover:bg-slate-50 dark:hover:bg-white/10
-             text-slate-700 dark:text-slate-200 border-slate-200/70 dark:border-white/10">
-  Editar
-</Link>
+          <Link
+            href={`/admin/categorias/${c.id}/editar`}
+            prefetch
+            className="rounded-xl px-3 py-1.5 text-xs font-medium border hover:bg-slate-50 dark:hover:bg-white/10
+             text-slate-700 dark:text-slate-200 border-slate-200/70 dark:border-white/10"
+          >
+            Editar
+          </Link>
 
           <ActionButton onClick={() => onDelete(c)} variant="danger">
             Eliminar

@@ -14,7 +14,7 @@ type Sitio = {
   cp: string;
   fraccionamiento: string;
   calle: string;
-  // 👇 suelen venir como string desde la API (columnas DECIMAL)
+  // columnas DECIMAL a veces llegan como string
   latitude: number | string;
   longitude: number | string;
   categoriaId: number;
@@ -39,8 +39,11 @@ export default function SitiosAdminPage() {
       const json = await res.json().catch(() => null);
       if (!res.ok) throw new Error((json && (json.message || json.error)) || `HTTP ${res.status}`);
       setData(json as Sitio[]);
-    } catch (e: any) {
-      if (e.name !== 'AbortError') setErr(e.message || 'Error al cargar sitios');
+    } catch (e: unknown) {
+      // ignora AbortError
+      if (e instanceof DOMException && e.name === 'AbortError') return;
+      const message = e instanceof Error ? e.message : 'Error al cargar sitios';
+      setErr(message);
     } finally {
       setLoading(false);
     }
@@ -51,7 +54,9 @@ export default function SitiosAdminPage() {
       const res = await fetch(`${BASE_URL}/categorias`, { cache: 'no-store', signal });
       const json = await res.json().catch(() => null);
       if (res.ok && Array.isArray(json)) setCats(json as Categoria[]);
-    } catch {}
+    } catch {
+      /* noop */
+    }
   };
 
   useEffect(() => {
