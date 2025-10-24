@@ -5,11 +5,10 @@ import Link from "next/link";
 import { useSearchParams, useRouter } from "next/navigation";
 import { useForm } from "react-hook-form";
 import { useState } from "react";
-import { BASE_URL } from "@/lib/api";
 
 type FormValues = { password: string };
 
-// Error tipado para propagar status HTTP sin usar `any`
+// Error tipado
 class HttpError extends Error {
   status?: number;
   constructor(message: string, status?: number) {
@@ -19,7 +18,6 @@ class HttpError extends Error {
   }
 }
 
-/** Página: sólo envuelve al componente que usa useSearchParams dentro de Suspense */
 export default function NextLoginPage() {
   return (
     <Suspense fallback={null}>
@@ -28,12 +26,12 @@ export default function NextLoginPage() {
   );
 }
 
-/** Todo tu código que usa hooks va aquí */
 function LoginInner() {
   const router = useRouter();
   const search = useSearchParams();
   const email = search.get("email") ?? "";
   const userId = search.get("userId") ?? "";
+  const next = search.get("next") || "/admin";
 
   const {
     register,
@@ -41,10 +39,7 @@ function LoginInner() {
     formState: { errors, isSubmitting, isValid, isDirty },
     clearErrors,
     watch,
-  } = useForm<FormValues>({
-    mode: "onChange",
-    defaultValues: { password: "" },
-  });
+  } = useForm<FormValues>({ mode: "onChange", defaultValues: { password: "" } });
 
   const pwd = watch("password");
   const [serverError, setServerError] = useState<string | null>(null);
@@ -62,34 +57,28 @@ function LoginInner() {
   const onSubmit = async ({ password }: FormValues) => {
     setServerError(null);
     try {
-      const res = await fetch(`${BASE_URL}/usuarios/login-password`, {
+      const res = await fetch("/api/login", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
+        // Mandamos correo + password al proxy
         body: JSON.stringify({ correo: email, password }),
-        credentials: "include",
+        // OJO: aquí ya NO usamos credentials: 'include'
       });
 
       if (!res.ok) {
-        let bodyText = "";
         let messageFromServer: string | undefined;
         try {
-          bodyText = await res.text();
-          try {
-            const asJson = JSON.parse(bodyText) as {
-              message?: string | string[];
-              error?: string;
-            };
-            messageFromServer =
-              (Array.isArray(asJson?.message) ? asJson.message[0] : asJson?.message) ??
-              asJson?.error;
-          } catch {
-            messageFromServer = bodyText;
-          }
-        } catch { /* ignore */ }
+          const data = await res.json();
+          messageFromServer =
+            (Array.isArray(data?.message) ? data.message[0] : data?.message) ?? data?.error;
+        } catch {
+          // ignore
+        }
         throw new HttpError(friendlyMessage(res.status, messageFromServer), res.status);
       }
 
-      router.replace("/admin");
+      // La cookie ya existe en el dominio; ahora sí podemos ir a /admin (o al next)
+      router.replace(next);
     } catch (e: unknown) {
       const status = e instanceof HttpError ? e.status : undefined;
       const message = e instanceof Error ? e.message : String(e ?? "");
@@ -97,7 +86,6 @@ function LoginInner() {
     }
   };
 
-  // Usa onChange dentro de register para no romper RHF
   const passwordRegister = register("password", {
     required: "La contraseña es obligatoria",
     minLength: { value: 8, message: "Mínimo 8 caracteres" },
@@ -126,7 +114,6 @@ function LoginInner() {
         {/* Card */}
         <div className="rounded-2xl border border-slate-200/60 bg-white/70 backdrop-blur-xl shadow-[0_10px_30px_-10px_rgba(0,0,0,0.2)] dark:border-white/10 dark:bg-white/5">
           <div className="p-6 sm:p-7">
-            {/* Banner de error */}
             {serverError && (
               <div
                 role="alert"
@@ -198,7 +185,6 @@ function LoginInner() {
                 )}
               </div>
 
-              {/* Habilitar cuando: hay email, el form es válido y el usuario escribió algo */}
               <button
                 disabled={!email || !isDirty || !isValid || isSubmitting || (pwd?.length ?? 0) < 8}
                 className="group relative inline-flex h-11 w-full items-center justify-center overflow-hidden rounded-xl bg-blue-600 px-4 font-semibold text-white transition enabled:hover:shadow-lg enabled:hover:shadow-blue-600/30 disabled:opacity-60"

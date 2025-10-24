@@ -3,7 +3,7 @@ import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 
 export const config = {
-  matcher: ["/admin/:path*", "/", "/login"], // protegemos admin, home y login
+  matcher: ["/admin/:path*", "/", "/login"], // ¡no /api!
 };
 
 export function middleware(req: NextRequest) {
@@ -22,12 +22,8 @@ export function middleware(req: NextRequest) {
     return NextResponse.redirect(new URL("/admin", req.url));
   }
 
-  // 3) Si alguien entra directo a /login sin email/userId -> vuelve a "/"
-  if (
-    pathname === "/login" &&
-    !searchParams.get("email") && // o exigir ambos si quieres: !searchParams.get("userId")
-    !token
-  ) {
+  // 3) /login sin email/userId -> vuelve a "/"
+  if (pathname === "/login" && !searchParams.get("email") && !token) {
     return NextResponse.redirect(new URL("/", req.url));
   }
 
