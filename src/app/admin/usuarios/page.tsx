@@ -1,5 +1,6 @@
 'use client';
 
+import Link from 'next/link';
 import { useEffect, useMemo, useState } from 'react';
 import { BASE_URL } from '@/lib/api';
 
@@ -34,8 +35,11 @@ export default function UsuariosAdminPage() {
       }
       const json = (await res.json()) as UsuarioRow[];
       setData(json);
-    } catch (e: any) {
-      if (e.name !== 'AbortError') setErr(e.message || 'Error al cargar usuarios');
+    } catch (e: unknown) {
+      // Ignorar aborts silenciosamente
+      if (e instanceof DOMException && e.name === 'AbortError') return;
+      const message = e instanceof Error ? e.message : 'Error al cargar usuarios';
+      setErr(message);
     } finally {
       setLoading(false);
     }
@@ -189,13 +193,13 @@ function Badge({
   children: React.ReactNode;
   color?: 'green' | 'amber' | 'slate';
 }) {
-  const schemes: Record<string, string> = {
+  const schemes: Record<'green' | 'amber' | 'slate', string> = {
     green:
       'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-200 border-green-200/60 dark:border-green-900/50',
     amber:
       'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-200 border-amber-200/60 dark:border-amber-900/50',
     slate:
-      'bg-slate-100 text-slate-700 dark:bg-white/10 dark:text-slate-200 border-slate-200/60 dark:border-white/10',
+      'bg-slate-100 text-slate-700 dark:bg:white/10 dark:text-slate-200 border-slate-200/60 dark:border-white/10',
   };
   return (
     <span className={`inline-flex items-center rounded-full border px-2 py-0.5 text-[11px] font-medium ${schemes[color]}`}>
@@ -218,12 +222,12 @@ function ActionLink({
       ? 'bg-sky-600 text-white hover:bg-sky-700'
       : 'border hover:bg-slate-50 dark:hover:bg-white/10';
   return (
-    <a
+    <Link
       href={href}
       className={`rounded-xl px-3 py-1.5 text-xs font-medium ${styles} border-slate-200/70 dark:border-white/10`}
     >
       {children}
-    </a>
+    </Link>
   );
 }
 
@@ -244,11 +248,7 @@ function UsuarioRowItem({ u }: { u: UsuarioRow }) {
         {u.telefono ?? <span className="text-slate-400">—</span>}
       </Td>
       <Td>
-        {u.validado ? (
-          <Badge color="green">Sí</Badge>
-        ) : (
-          <Badge color="amber">No</Badge>
-        )}
+        {u.validado ? <Badge color="green">Sí</Badge> : <Badge color="amber">No</Badge>}
       </Td>
       <Td className="text-right">
         <div className="flex items-center justify-end gap-2">

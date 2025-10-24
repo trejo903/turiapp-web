@@ -17,6 +17,16 @@ type LoginStartResp = {
   nextStep: "crear-password" | "informacion" | "ultimo" | "password-check";
 };
 
+// Error tipado para propagar status HTTP sin usar `any`
+class HttpError extends Error {
+  status?: number;
+  constructor(message: string, status?: number) {
+    super(message);
+    this.name = "HttpError";
+    this.status = status;
+  }
+}
+
 export default function Usuario() {
   const router = useRouter();
   const [serverError, setServerError] = useState<string | null>(null);
@@ -43,12 +53,12 @@ export default function Usuario() {
       return "No tienes permisos para continuar. Verifica tus datos.";
     if (status && status >= 500)
       return "Tuvimos un problema en el servidor. Intenta más tarde.";
-    // fallback al texto del backend si viene legible
     return text || "No pudimos continuar. Intenta de nuevo.";
   };
 
   const onSubmit = async ({ email }: FormValues) => {
     setServerError(null);
+
     try {
       const res = await fetch(`${BASE_URL}/usuarios/login-start`, {
         method: "POST",
@@ -60,10 +70,14 @@ export default function Usuario() {
         // intenta leer JSON y tomar su message; si no, usa texto plano
         let bodyText = "";
         let messageFromServer: string | undefined;
+
         try {
           bodyText = await res.text();
           try {
-            const asJson = JSON.parse(bodyText);
+            const asJson = JSON.parse(bodyText) as {
+              message?: string | string[];
+              error?: string;
+            };
             messageFromServer =
               (Array.isArray(asJson?.message)
                 ? asJson.message[0]
@@ -74,13 +88,12 @@ export default function Usuario() {
         } catch {
           /* ignore */
         }
+
         const msg = friendlyMessage(res.status, messageFromServer);
-        const err = new Error(msg) as any;
-        err.status = res.status;
-        throw err;
+        throw new HttpError(msg, res.status);
       }
 
-      const body: LoginStartResp = await res.json();
+      const body = (await res.json()) as LoginStartResp;
       const userId = String(body.id);
 
       switch (body.nextStep) {
@@ -121,8 +134,11 @@ export default function Usuario() {
           );
           break;
       }
-    } catch (e: any) {
-      const msg = friendlyMessage(e?.status, e?.message);
+    } catch (e: unknown) {
+      const status = e instanceof HttpError ? e.status : undefined;
+      const message = e instanceof Error ? e.message : String(e ?? "");
+      const msg = friendlyMessage(status, message);
+
       // pinta el input y muestra banner
       setError("email", { type: "server", message: msg });
       setServerError(msg);
@@ -135,8 +151,13 @@ export default function Usuario() {
         {/* Header */}
         <div className="text-center mb-6">
           <div className="inline-flex h-12 w-12 items-center justify-center rounded-2xl bg-blue-600 text-white shadow-lg shadow-blue-600/30">
-            <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" viewBox="0 0 24 24" fill="currentColor">
-              <path d="M12 2a10 10 0 1 0 .001 20.001A10 10 0 0 0 12 2zm1 15h-2v-2h2v2zm0-4h-2V7h2v6z"/>
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              className="h-6 w-6"
+              viewBox="0 0 24 24"
+              fill="currentColor"
+            >
+              <path d="M12 2a10 10 0 1 0 .001 20.001A10 10 0 0 0 12 2zm1 15h-2v-2h2v2zm0-4h-2V7h2v6z" />
             </svg>
           </div>
           <h1 className="mt-4 text-2xl font-bold tracking-tight text-slate-900 dark:text-slate-100">
@@ -156,7 +177,11 @@ export default function Usuario() {
                 role="alert"
                 className="mb-4 flex items-start gap-3 rounded-xl border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-rose-700 dark:border-rose-900/40 dark:bg-rose-950/30 dark:text-rose-300"
               >
-                <svg className="mt-[2px] h-5 w-5" viewBox="0 0 24 24" fill="currentColor">
+                <svg
+                  className="mt-[2px] h-5 w-5"
+                  viewBox="0 0 24 24"
+                  fill="currentColor"
+                >
                   <path d="M11 7h2v6h-2V7Zm0 8h2v2h-2v-2Zm1-13a10 10 0 1 0 0 20 10 10 0 0 0 0-20Z" />
                 </svg>
                 <div className="flex-1">{serverError}</div>
@@ -218,7 +243,7 @@ export default function Usuario() {
                         aria-describedby={errors.email ? "email-error" : undefined}
                         onChange={(e) => {
                           field.onChange(e);
-                          if (serverError) setServerError(null); // limpiar banner al escribir
+                          if (serverError) setServerError(null);
                         }}
                         onKeyDown={(e) => {
                           if (e.key === "Enter") e.currentTarget.form?.requestSubmit();
@@ -226,7 +251,10 @@ export default function Usuario() {
                       />
                     </div>
                     {errors.email && (
-                      <p id="email-error" className="mt-1.5 text-sm text-rose-600 dark:text-rose-400">
+                      <p
+                        id="email-error"
+                        className="mt-1.5 text-sm text-rose-600 dark:text-rose-400"
+                      >
                         {errors.email.message}
                       </p>
                     )}
@@ -246,16 +274,25 @@ export default function Usuario() {
                     viewBox="0 0 24 24"
                     fill="none"
                   >
-                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 0 1 8-8v4a4 4 0 0 0-4 4H4z" />
+                    <circle
+                      className="opacity-25"
+                      cx="12"
+                      cy="12"
+                      r="10"
+                      stroke="currentColor"
+                      strokeWidth="4"
+                    />
+                    <path
+                      className="opacity-75"
+                      fill="currentColor"
+                      d="M4 12a8 8 0 0 1 8-8v4a4 4 0 0 0-4 4H4z"
+                    />
                   </svg>
                 )}
                 <span className="transition group-enabled:group-hover:-translate-y-[1px]">
                   {isSubmitting ? "Enviando..." : "Continuar"}
                 </span>
               </button>
-
-              
             </form>
           </div>
         </div>

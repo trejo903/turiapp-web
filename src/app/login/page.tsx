@@ -1,11 +1,22 @@
 "use client";
 
+import Link from "next/link";
 import { useSearchParams, useRouter } from "next/navigation";
 import { useForm } from "react-hook-form";
 import { useState } from "react";
 import { BASE_URL } from "@/lib/api";
 
 type FormValues = { password: string };
+
+// Error tipado para propagar status HTTP sin usar `any`
+class HttpError extends Error {
+  status?: number;
+  constructor(message: string, status?: number) {
+    super(message);
+    this.name = "HttpError";
+    this.status = status;
+  }
+}
 
 export default function NextLogin() {
   const router = useRouter();
@@ -21,7 +32,7 @@ export default function NextLogin() {
     watch,
   } = useForm<FormValues>({
     mode: "onChange",
-    defaultValues: { password: "" }, // ✅ necesario para que isValid funcione en onChange
+    defaultValues: { password: "" },
   });
 
   const pwd = watch("password");
@@ -53,26 +64,31 @@ export default function NextLogin() {
         try {
           bodyText = await res.text();
           try {
-            const asJson = JSON.parse(bodyText);
+            const asJson = JSON.parse(bodyText) as {
+              message?: string | string[];
+              error?: string;
+            };
             messageFromServer =
-              (Array.isArray(asJson?.message) ? asJson.message[0] : asJson?.message) ||
+              (Array.isArray(asJson?.message) ? asJson.message[0] : asJson?.message) ??
               asJson?.error;
           } catch {
             messageFromServer = bodyText;
           }
-        } catch {}
-        const err = new Error(friendlyMessage(res.status, messageFromServer)) as any;
-        err.status = res.status;
-        throw err;
+        } catch {
+          /* ignore */
+        }
+        throw new HttpError(friendlyMessage(res.status, messageFromServer), res.status);
       }
 
       router.replace("/admin");
-    } catch (e: any) {
-      setServerError(friendlyMessage(e?.status, e?.message));
+    } catch (e: unknown) {
+      const status = e instanceof HttpError ? e.status : undefined;
+      const message = e instanceof Error ? e.message : String(e ?? "");
+      setServerError(friendlyMessage(status, message));
     }
   };
 
-  // ✅ Usa onChange dentro de register para no romper RHF
+  // Usa onChange dentro de register para no romper RHF
   const passwordRegister = register("password", {
     required: "La contraseña es obligatoria",
     minLength: { value: 8, message: "Mínimo 8 caracteres" },
@@ -194,9 +210,9 @@ export default function NextLogin() {
             </form>
 
             <div className="mt-3 text-center">
-              <a href="/" className="text-sm text-slate-600 hover:underline dark:text-slate-400">
+              <Link href="/" className="text-sm text-slate-600 hover:underline dark:text-slate-400">
                 Usar otro correo
-              </a>
+              </Link>
             </div>
           </div>
         </div>
