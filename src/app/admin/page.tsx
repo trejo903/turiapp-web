@@ -89,24 +89,17 @@ export default function AdminHome() {
           </div>
 
            <button
-    onClick={async () => {
-      try {
-        await fetch(`${BASE_URL}/usuarios/logout`, {
-          method: "POST",
-          credentials: "include",
-        });
-      } catch {
-        // ignorar error si no hay conexión o cookie
-      }
-      // elimina el token del navegador si existiera (por si acaso)
-      document.cookie =
-        "access_token=; Path=/; Max-Age=0; SameSite=Lax; Secure";
-      window.location.href = "/"; // redirige al login
-    }}
-    className="rounded-xl cursor-pointer bg-rose-600 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-rose-700 transition"
-  >
-    Cerrar sesión
-  </button>
+  onClick={async () => {
+    try {
+      await fetch("/api/logout", { method: "POST" });
+    } catch { /* ignore */ }
+    window.location.href = "/"; // o usa router.replace("/")
+  }}
+  className="rounded-xl cursor-pointer bg-rose-600 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-rose-700 transition"
+>
+  Cerrar sesión
+</button>
+
           
         </header>
 
