@@ -129,7 +129,6 @@ export default function UsuariosAdminPage() {
                   <Th>Apellido</Th>
                   <Th>Teléfono</Th>
                   <Th>Validado</Th>
-                  <Th className="text-right">Acciones</Th>
                 </tr>
               </thead>
 
@@ -249,14 +248,6 @@ function UsuarioRowItem({ u }: { u: UsuarioRow }) {
       </Td>
       <Td>
         {u.validado ? <Badge color="green">Sí</Badge> : <Badge color="amber">No</Badge>}
-      </Td>
-      <Td className="text-right">
-        <div className="flex items-center justify-end gap-2">
-          <ActionLink href={`/admin/usuarios/${u.id}`}>Ver</ActionLink>
-          <ActionLink href={`/admin/usuarios/${u.id}/editar`} variant="primary">
-            Editar
-          </ActionLink>
-        </div>
       </Td>
     </tr>
   );

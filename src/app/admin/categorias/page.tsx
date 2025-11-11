@@ -3,7 +3,6 @@
 import Image from 'next/image';
 import { useEffect, useMemo, useState } from 'react';
 import { BASE_URL } from '@/lib/api';
-import Link from 'next/link';
 
 type Categoria = {
   id: number;
@@ -13,18 +12,21 @@ type Categoria = {
   reservable: boolean;
 };
 
-type CreateBody = { nombre: string; img?: string; color?: string };
+type CreateBody = { nombre: string; img?: string; color?: string; reservable?: boolean };
 type UpdateBody = Partial<CreateBody>;
+
 
 export default function CategoriasAdminPage() {
   const [data, setData] = useState<Categoria[]>([]);
   const [loading, setLoading] = useState(true);
   const [err, setErr] = useState<string | null>(null);
   const [q, setQ] = useState('');
+  const [fReservable, setFReservable] = useState(false);
 
-  // modal (solo se usa para editar)
+
+  // modal
   const [open, setOpen] = useState(false);
-  const [mode, setMode] = useState<'create' | 'edit'>('edit');
+  const [mode, setMode] = useState<'create' | 'edit'>('create');
   const [current, setCurrent] = useState<Categoria | null>(null);
 
   // form
@@ -33,18 +35,36 @@ export default function CategoriasAdminPage() {
   const [fColor, setFColor] = useState('');
 
   const resetForm = () => {
-    setFNombre('');
-    setFImg('');
-    setFColor('');
-  };
-
-  
-
+  setFNombre('');
+  setFImg('');
+  setFColor('');
+  setFReservable(false);
+};
   const closeModal = () => {
     setOpen(false);
     setErr(null);
     resetForm();
+    setCurrent(null);
   };
+
+  const handleCreateClick = () => {
+  setMode('create');
+  setCurrent(null);
+  resetForm();
+  setErr(null);
+  setOpen(true);
+};
+
+  const handleEditClick = (cat: Categoria) => {
+  setMode('edit');
+  setCurrent(cat);
+  setErr(null);
+  setFNombre(cat.nombre);
+  setFImg(cat.img ?? '');
+  setFColor(cat.color ?? '');
+  setFReservable(cat.reservable);   // 👈 importante
+  setOpen(true);
+};
 
   const fetchAll = async (signal?: AbortSignal) => {
     setLoading(true);
@@ -104,11 +124,13 @@ export default function CategoriasAdminPage() {
     if (fImg && !isValidUrl(fImg)) return setErr('img debe ser una URL válida');
     if (fColor && !isValidHex(fColor)) return setErr('color debe tener el formato #RRGGBB');
 
-    const body: CreateBody | UpdateBody = {
-      nombre: fNombre.trim(),
-      img: fImg.trim() || undefined,
-      color: fColor.trim() || undefined,
-    };
+   const body: CreateBody | UpdateBody = {
+  nombre: fNombre.trim(),
+  img: fImg.trim() || undefined,
+  color: fColor.trim() || undefined,
+  reservable: fReservable,
+};
+
 
     const editing = mode === 'edit' && current;
     const url = editing ? `${BASE_URL}/categorias/${current!.id}` : `${BASE_URL}/categorias`;
@@ -177,12 +199,12 @@ export default function CategoriasAdminPage() {
               {loading ? 'Cargando…' : 'Recargar'}
             </button>
 
-            <Link
-              href="/admin/categorias/nueva"
+            <button
+              onClick={handleCreateClick}
               className="rounded-xl bg-sky-600 px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-sky-700"
             >
               Nueva
-            </Link>
+            </button>
           </div>
         </header>
 
@@ -222,7 +244,7 @@ export default function CategoriasAdminPage() {
                   </tr>
                 ) : (
                   filtered.map((c) => (
-                    <CategoriaRow key={c.id} c={c} onDelete={handleDelete} />
+                    <CategoriaRow key={c.id} c={c} onDelete={handleDelete} onEdit={handleEditClick} />
                   ))
                 )}
               </tbody>
@@ -231,89 +253,143 @@ export default function CategoriasAdminPage() {
         </section>
       </div>
 
-      {/* Modal de edición */}
+      {/* Modal Crear / Editar */}
       {open && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
-          <div className="w-full max-w-lg rounded-2xl bg-white p-5 shadow-xl dark:bg-slate-900">
-            <div className="mb-4 flex items-center justify-between">
-              <h2 className="text-lg font-semibold">
-                {mode === 'edit' ? `Editar: ${current?.nombre}` : 'Nueva categoría'}
-              </h2>
-              <button
-                onClick={closeModal}
-                className="rounded-lg border px-3 py-1 text-xs hover:bg-gray-100 dark:border-white/10 dark:hover:bg-white/10"
-              >
-                Cerrar
-              </button>
-            </div>
+        <div className="fixed inset-0 z-50 overflow-y-auto bg-slate-950/60 backdrop-blur-sm">
+          <div className="flex min-h-full items-start justify-center p-4 sm:p-6">
+            <div className="relative w-full max-w-xl rounded-3xl border border-slate-200/60 bg-white shadow-2xl dark:border-white/10 dark:bg-slate-900/95">
+              {/* Header modal */}
+              <div className="flex items-start justify-between border-b border-slate-100/80 px-6 py-4 dark:border-white/10">
+                <div>
+                  <p className="text-[11px] font-semibold uppercase tracking-wide text-sky-500">
+                    {mode === 'edit' ? 'Editar categoría' : 'Nueva categoría'}
+                  </p>
+                  <h2 className="mt-1 text-lg font-semibold text-slate-900 dark:text-slate-50">
+                    {mode === 'edit' && current ? current.nombre : 'Información de la categoría'}
+                  </h2>
+                  <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
+                    Define el nombre, color e imagen opcional de la categoría.
+                  </p>
+                </div>
+                
 
-            <div className="space-y-3">
-              <div>
-                <label className="mb-1 block text-xs font-medium text-gray-600 dark:text-slate-300">Nombre</label>
-                <input
-                  value={fNombre}
-                  onChange={(e) => setFNombre(e.target.value)}
-                  placeholder="Ej. Restaurantes"
-                  className="w-full rounded-lg border px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-sky-500 dark:border-white/10 dark:bg-white/5 dark:text-slate-100"
-                />
+                <button
+                  onClick={closeModal}
+                  className="inline-flex h-8 w-8 items-center justify-center rounded-full border border-slate-200/70 text-slate-500 transition hover:bg-slate-50 hover:text-slate-700 dark:border-white/10 dark:text-slate-300 dark:hover:bg-white/10 dark:hover:text-white"
+                  aria-label="Cerrar"
+                >
+                  <span className="text-lg leading-none">×</span>
+                </button>
               </div>
 
-              <div>
-                <label className="mb-1 block text-xs font-medium text-gray-600 dark:text-slate-300">Imagen (URL)</label>
-                <input
-                  value={fImg}
-                  onChange={(e) => setFImg(e.target.value)}
-                  placeholder="https://…"
-                  className="w-full rounded-lg border px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-sky-500 dark:border-white/10 dark:bg-white/5 dark:text-slate-100"
-                />
-                {fImg && isValidUrl(fImg) && (
-                  <div className="mt-2 flex items-center gap-2 text-xs text-gray-600 dark:text-slate-300">
-                    <span className="relative block h-12 w-12 overflow-hidden rounded border dark:border-white/10">
-                      <Image src={fImg} alt="preview" fill sizes="48px" className="object-cover" />
-                    </span>
-                    Vista previa
+              {/* Contenido */}
+              <div className="max-h-[70vh] overflow-y-auto px-6 py-4">
+                <div className="space-y-4">
+                  <div>
+                    <label className="mb-1 block text-xs font-medium text-gray-600 dark:text-slate-300">
+                      Nombre
+                    </label>
+                    <input
+                      value={fNombre}
+                      onChange={(e) => setFNombre(e.target.value)}
+                      placeholder="Ej. Relax & Salud"
+                      className="w-full rounded-lg border px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-sky-500 dark:border-white/10 dark:bg-white/5 dark:text-slate-100"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="mb-1 block text-xs font-medium text-gray-600 dark:text-slate-300">
+                      Imagen (URL)
+                    </label>
+                    <input
+                      value={fImg}
+                      onChange={(e) => setFImg(e.target.value)}
+                      placeholder="https://…"
+                      className="w-full rounded-lg border px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-sky-500 dark:border-white/10 dark:bg-white/5 dark:text-slate-100"
+                    />
+                    {fImg && isValidUrl(fImg) && (
+                      <div className="mt-2 flex items-center gap-2 text-xs text-gray-600 dark:text-slate-300">
+                        <span className="relative block h-12 w-12 overflow-hidden rounded border border-slate-200/70 dark:border-white/10">
+                          <Image src={fImg} alt="preview" fill sizes="48px" className="object-cover" />
+                        </span>
+                        <span>Vista previa</span>
+                      </div>
+                    )}
+                  </div>
+
+                  <div>
+                    <label className="mb-1 block text-xs font-medium text-gray-600 dark:text-slate-300">
+                      Color (#RRGGBB)
+                    </label>
+                    <input
+                      value={fColor}
+                      onChange={(e) => setFColor(e.target.value)}
+                      placeholder="#FF9900"
+                      className="w-full rounded-lg border px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-sky-500 dark:border-white/10 dark:bg-white/5 dark:text-slate-100"
+                    />
+                    {fColor && isValidHex(fColor) && (
+                      <div className="mt-2 flex items-center gap-2 text-xs text-gray-600 dark:text-slate-300">
+                        <span
+                          className="h-4 w-4 rounded border border-black/10 dark:border-white/30"
+                          style={{ backgroundColor: fColor }}
+                        />
+                        <span>Vista previa</span>
+                      </div>
+                    )}
+                  </div>
+                  <div>
+  <label className="mb-1 block text-xs font-medium text-gray-600 dark:text-slate-300">
+    Reservable
+  </label>
+  <div className="flex items-center gap-3">
+    <button
+      type="button"
+      onClick={() => setFReservable((v) => !v)}
+      className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
+        fReservable ? 'bg-emerald-500/90' : 'bg-slate-500/60'
+      }`}
+    >
+      <span
+        className={`inline-block h-5 w-5 transform rounded-full bg-white shadow transition-transform ${
+          fReservable ? 'translate-x-5' : 'translate-x-1'
+        }`}
+      />
+    </button>
+    <span className="text-xs text-slate-600 dark:text-slate-300">
+      {fReservable ? 'Sí, se puede reservar' : 'No, solo informativa'}
+    </span>
+  </div>
+</div>
+
+                </div>
+
+                {err && (
+                  <div className="mt-4 rounded-lg border border-red-300 bg-red-50 px-3 py-2 text-sm text-red-800 dark:border-red-900/40 dark:bg-red-900/20 dark:text-red-200">
+                    {err}
                   </div>
                 )}
               </div>
 
-              <div>
-                <label className="mb-1 block text-xs font-medium text-gray-600 dark:text-slate-300">
-                  Color (#RRGGBB)
-                </label>
-                <input
-                  value={fColor}
-                  onChange={(e) => setFColor(e.target.value)}
-                  placeholder="#FF9900"
-                  className="w-full rounded-lg border px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-sky-500 dark:border-white/10 dark:bg-white/5 dark:text-slate-100"
-                />
-                {fColor && isValidHex(fColor) && (
-                  <div className="mt-2 flex items-center gap-2 text-xs text-gray-600 dark:text-slate-300">
-                    <span className="h-4 w-4 rounded border border-black/10 dark:border-white/30" style={{ backgroundColor: fColor }} />
-                    Vista previa
-                  </div>
-                )}
+              {/* Footer */}
+              <div className="flex items-center justify-between gap-3 border-t border-slate-100/80 bg-slate-50/70 px-6 py-4 text-xs dark:border-white/10 dark:bg-slate-900/80">
+                <p className="hidden text-slate-500 dark:text-slate-400 sm:block">
+                  Revisa los datos antes de guardar. Podrás editarlos después.
+                </p>
+                <div className="ml-auto flex gap-2">
+                  <button
+                    onClick={closeModal}
+                    className="rounded-lg border border-slate-200/80 px-4 py-2 text-sm font-medium text-slate-600 transition hover:bg-slate-100 dark:border-white/15 dark:text-slate-200 dark:hover:bg-white/10"
+                  >
+                    Cancelar
+                  </button>
+                  <button
+                    onClick={handleSubmit}
+                    className="rounded-lg bg-sky-600 px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-sky-700"
+                  >
+                    Guardar
+                  </button>
+                </div>
               </div>
-            </div>
-
-            {err && (
-              <div className="mt-4 rounded-lg border border-red-300 bg-red-50 px-3 py-2 text-sm text-red-800 dark:border-red-900/40 dark:bg-red-900/20 dark:text-red-200">
-                {err}
-              </div>
-            )}
-
-            <div className="mt-5 flex items-center justify-end gap-2">
-              <button
-                onClick={closeModal}
-                className="rounded-lg border px-4 py-2 text-sm hover:bg-gray-100 dark:border-white/10 dark:hover:bg-white/10"
-              >
-                Cancelar
-              </button>
-              <button
-                onClick={handleSubmit}
-                className="rounded-lg bg-sky-600 px-4 py-2 text-sm font-semibold text-white hover:bg-sky-700"
-              >
-                Guardar
-              </button>
             </div>
           </div>
         </div>
@@ -337,12 +413,20 @@ function Td({ children, className = '' }: { children: React.ReactNode; className
 function Badge({ children, color = 'slate' }: { children: React.ReactNode; color?: 'green' | 'slate' }) {
   const schemes: Record<'green' | 'slate', string> = {
     green:
-      'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-200 border-green-200/60 dark:border-green-900/50',
+      'bg-emerald-100 text-emerald-700 border-emerald-200/70 dark:bg-emerald-900/40 dark:text-emerald-200 dark:border-emerald-800',
     slate:
-      'bg-slate-100 text-slate-700 dark:bg-white/10 dark:text-slate-200 border-slate-200/60 dark:border-white/10',
+      'bg-slate-200 text-slate-800 border-slate-300 dark:bg-slate-800/70 dark:text-slate-100 dark:border-slate-600',
   };
-  return <span className={`inline-flex items-center rounded-full border px-2 py-0.5 text-[11px] font-medium ${schemes[color]}`}>{children}</span>;
+
+  return (
+    <span
+      className={`inline-flex items-center rounded-full border px-2 py-0.5 text-[11px] font-medium ${schemes[color]}`}
+    >
+      {children}
+    </span>
+  );
 }
+
 function ActionButton({
   onClick,
   children,
@@ -370,12 +454,14 @@ function ActionButton({
 function CategoriaRow({
   c,
   onDelete,
+  onEdit,
 }: {
   c: Categoria;
   onDelete: (c: Categoria) => void;
+  onEdit: (c: Categoria) => void;
 }) {
   return (
-    <tr className="hover:bg-slate-50/60 dark:hover:bg-white/5">
+    <tr className="transition-colors hover:bg-slate-50/60 dark:hover:bg-slate-800/70">
       <Td className="text-slate-500 dark:text-slate-400">{c.id}</Td>
       <Td className="font-medium text-slate-800 dark:text-slate-100">{c.nombre}</Td>
       <Td>
@@ -404,14 +490,9 @@ function CategoriaRow({
       <Td>{c.reservable ? <Badge color="green">Sí</Badge> : <Badge>No</Badge>}</Td>
       <Td className="text-right">
         <div className="flex items-center justify-end gap-2">
-          <Link
-            href={`/admin/categorias/${c.id}/editar`}
-            prefetch
-            className="rounded-xl px-3 py-1.5 text-xs font-medium border hover:bg-slate-50 dark:hover:bg-white/10
-             text-slate-700 dark:text-slate-200 border-slate-200/70 dark:border-white/10"
-          >
+          <ActionButton onClick={() => onEdit(c)} variant="ghost">
             Editar
-          </Link>
+          </ActionButton>
 
           <ActionButton onClick={() => onDelete(c)} variant="danger">
             Eliminar
