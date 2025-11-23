@@ -19,23 +19,14 @@ export default function AdminHome() {
   useEffect(() => {
     const ac = new AbortController();
 
-    // intenta primero /usuarios/count-activos, si 404/500 cae a /usuarios/count
     const fetchUsers = async () => {
       try {
-        const r1 = await fetch(`${BASE_URL}/usuarios/count-activos`, { signal: ac.signal });
-        if (r1.ok) {
-          const d = await r1.json();
-          setUsers(Number(d.total ?? 0));
-          return;
-        }
-        // fallback
-        const r2 = await fetch(`${BASE_URL}/usuarios/count`, { signal: ac.signal });
-        if (r2.ok) {
-          const d = await r2.json();
-          setUsers(Number(d.total ?? 0));
-        } else {
-          setUsers(null);
-        }
+        const r = await fetch(`${BASE_URL}/usuarios/count`, {
+          signal: ac.signal,
+        });
+        if (!r.ok) throw 0;
+        const d = await r.json();
+        setUsers(Number(d.total ?? 0));
       } catch {
         setUsers(null);
       }
@@ -43,7 +34,9 @@ export default function AdminHome() {
 
     const fetchCats = async () => {
       try {
-        const r = await fetch(`${BASE_URL}/categorias/count`, { signal: ac.signal });
+        const r = await fetch(`${BASE_URL}/categorias/count`, {
+          signal: ac.signal,
+        });
         if (!r.ok) throw 0;
         const d = await r.json();
         setCats(Number(d.total ?? 0));
@@ -54,7 +47,9 @@ export default function AdminHome() {
 
     const fetchSites = async () => {
       try {
-        const r = await fetch(`${BASE_URL}/sitios/count`, { signal: ac.signal });
+        const r = await fetch(`${BASE_URL}/sitios/count`, {
+          signal: ac.signal,
+        });
         if (!r.ok) throw 0;
         const d = await r.json();
         setSites(Number(d.total ?? 0));
@@ -72,9 +67,18 @@ export default function AdminHome() {
     return () => ac.abort();
   }, []);
 
-  const usersText = useMemo(() => (loading ? "…" : format(users)), [loading, users]);
-  const catsText = useMemo(() => (loading ? "…" : format(cats)), [loading, cats]);
-  const sitesText = useMemo(() => (loading ? "…" : format(sites)), [loading, sites]);
+  const usersText = useMemo(
+    () => (loading ? "…" : format(users)),
+    [loading, users]
+  );
+  const catsText = useMemo(
+    () => (loading ? "…" : format(cats)),
+    [loading, cats]
+  );
+  const sitesText = useMemo(
+    () => (loading ? "…" : format(sites)),
+    [loading, sites]
+  );
 
   return (
     <main className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-sky-50 dark:from-slate-900 dark:via-slate-950 dark:to-slate-900">
@@ -85,22 +89,21 @@ export default function AdminHome() {
             <h1 className="text-2xl font-bold tracking-tight text-slate-900 dark:text-slate-100">
               Panel de administración
             </h1>
-
           </div>
 
-           <button
-  onClick={async () => {
-    try {
-      await fetch("/api/logout", { method: "POST" });
-    } catch { /* ignore */ }
-    window.location.href = "/"; // o usa router.replace("/")
-  }}
-  className="rounded-xl cursor-pointer bg-rose-600 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-rose-700 transition"
->
-  Cerrar sesión
-</button>
-
-          
+          <button
+            onClick={async () => {
+              try {
+                await fetch("/api/logout", { method: "POST" });
+              } catch {
+                /* ignore */
+              }
+              window.location.href = "/";
+            }}
+            className="rounded-xl cursor-pointer bg-rose-600 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-rose-700 transition"
+          >
+            Cerrar sesión
+          </button>
         </header>
 
         {/* Acciones principales */}
@@ -113,7 +116,12 @@ export default function AdminHome() {
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-3">
                 <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-sky-600 text-white shadow-sky-600/30 shadow-lg">
-                  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" className="h-6 w-6" fill="currentColor">
+                  <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    viewBox="0 0 24 24"
+                    className="h-6 w-6"
+                    fill="currentColor"
+                  >
                     <path d="M12 12a5 5 0 1 0-5-5 5 5 0 0 0 5 5Zm-7 8a7 7 0 0 1 14 0 1 1 0 0 1-1 1H6a1 1 0 0 1-1-1Z" />
                   </svg>
                 </div>
@@ -140,7 +148,12 @@ export default function AdminHome() {
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-3">
                 <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-emerald-600 text-white shadow-emerald-600/30 shadow-lg">
-                  <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" viewBox="0 0 24 24" fill="currentColor">
+                  <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    className="h-6 w-6"
+                    viewBox="0 0 24 24"
+                    fill="currentColor"
+                  >
                     <path d="M3 7a4 4 0 0 1 4-4h2a4 4 0 0 1 4 4v2a4 4 0 0 1-4 4H7a4 4 0 0 1-4-4Zm12 0a4 4 0 0 1 4-4h2v2a4 4 0 0 1-4 4h-2ZM3 15h2a4 4 0 0 1 4 4v2H7a4 4 0 0 1-4-4Zm16 0a4 4 0 0 1 4 4v2h-2a4 4 0 0 1-4-4v-2Z" />
                   </svg>
                 </div>
@@ -167,7 +180,12 @@ export default function AdminHome() {
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-3">
                 <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-fuchsia-600 text-white shadow-fuchsia-600/30 shadow-lg">
-                  <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" viewBox="0 0 24 24" fill="currentColor">
+                  <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    className="h-6 w-6"
+                    viewBox="0 0 24 24"
+                    fill="currentColor"
+                  >
                     <path d="M12 2a7 7 0 0 0-7 7c0 4.418 7 13 7 13s7-8.582 7-13a7 7 0 0 0-7-7Zm0 9.5a2.5 2.5 0 1 1 0-5 2.5 2.5 0 0 1 0 5Z" />
                   </svg>
                 </div>
@@ -190,7 +208,7 @@ export default function AdminHome() {
         {/* Widgets / métricas */}
         <section className="mt-10 grid gap-4 sm:grid-cols-3">
           <div className="rounded-xl border border-slate-200/70 bg-white/70 p-4 text-sm dark:border-white/10 dark:bg-white/5">
-            <p className="text-slate-500 dark:text-slate-400">Usuarios activos</p>
+            <p className="text-slate-500 dark:text-slate-400">Usuarios</p>
             <p className="mt-1 text-2xl font-bold text-slate-900 dark:text-slate-100">
               {usersText}
             </p>

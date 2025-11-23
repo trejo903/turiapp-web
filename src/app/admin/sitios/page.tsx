@@ -565,19 +565,21 @@ export default function SitiosAdminPage() {
                   <div className="sm:col-span-2">
                     <Label>Imágenes secundarias (archivos)</Label>
                     <input
-                      type="file"
-                      accept="image/*"
-                      multiple
-                      onChange={(e) => {
-                        const files = Array.from(e.target.files ?? []);
-                        setFSecondaryFiles(files);
-                      }}
-                      className="mt-1 block w-full text-xs text-slate-600
-                                 file:mr-4 file:rounded-md file:border-0 file:bg-sky-50
-                                 file:px-3 file:py-1.5 file:text-xs file:font-medium file:text-sky-700
-                                 hover:file:bg-sky-100
-                                 dark:text-slate-200 dark:file:bg-slate-800 dark:file:text-slate-100"
-                    />
+  type="file"
+  accept="image/*"
+  multiple
+  onChange={(e) => {
+    const files = Array.from(e.target.files ?? []);
+    // 👇 acumular en lugar de reemplazar
+    setFSecondaryFiles((prev) => [...prev, ...files]);
+  }}
+  className="mt-1 block w-full text-xs text-slate-600
+             file:mr-4 file:rounded-md file:border-0 file:bg-sky-50
+             file:px-3 file:py-1.5 file:text-xs file:font-medium file:text-sky-700
+             hover:file:bg-sky-100
+             dark:text-slate-200 dark:file:bg-slate-800 dark:file:text-slate-100"
+/>
+
                     {fSecondaryFiles.length > 0 && (
                       <p className="mt-1 text-[11px] text-slate-500 dark:text-slate-400">
                         {fSecondaryFiles.length} archivo(s) nuevo(s) seleccionado(s)
