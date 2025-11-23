@@ -1,1 +1,1 @@
-export const BASE_URL = "https://turiapp-backend.onrender.com/api";
+export const BASE_URL = "http://localhost:5001/api";

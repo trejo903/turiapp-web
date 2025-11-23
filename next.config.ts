@@ -4,10 +4,15 @@ const nextConfig = {
     remotePatterns: [
       // Cloudinary
       { protocol: 'https', hostname: 'res.cloudinary.com' },
-      // si usas http en local
+
+      // AWS S3 (tu bucket de imágenes)
+      { protocol: 'https', hostname: 'amzn--image.s3.us-east-2.amazonaws.com' },
+
+      // si usas http/https en local
       { protocol: 'http', hostname: 'localhost' },
       { protocol: 'https', hostname: 'localhost' },
-      // agrega otros CDNs si los usas:
+
+      // otros CDNs que uses
       // { protocol: 'https', hostname: 'images.unsplash.com' },
       // { protocol: 'https', hostname: 'cdn.tudominio.com' },
     ],
